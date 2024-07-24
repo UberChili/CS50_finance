@@ -1,0 +1,9 @@
+# Virtual environment
+finance_venv/
+
+# flask session
+flask_session/
+
+# Compiled Python files
+*.pyc
+
