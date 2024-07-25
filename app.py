@@ -237,4 +237,15 @@ def register():
 @login_required
 def sell():
     """Sell shares of stock"""
-    return apology("TODO")
+    if request.method == "GET":
+        # get holdings to display
+        rows = db.execute("SELECT * FROM holdings WHERE id = ?", session['user_id'])
+        if len(rows) < 1:
+            return apology("User has no holdings", 400)
+        else:
+            holdings = []
+            for row in rows:
+                holdings.append({'symbol': row['symbol'], 'amount': row['amount']})
+        return render_template("sell.html", holdings=holdings)
+    else:
+        return apology("TODO")
