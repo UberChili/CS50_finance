@@ -36,7 +36,8 @@ def after_request(response):
 @login_required
 def index():
     """Show portfolio of stocks"""
-    return apology("TODO")
+    rows = db.execute("SELECT * FROM holdings WHERE user_id = ?", session['user_id'])
+    return render_template("index.html", holdings=rows)
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -57,22 +58,36 @@ def buy():
             print(symbol, shares_to_buy, amount_to_spend)
 
             # Getting user's balance
-            user_cash = db.execute("SELECT * FROM users WHERE id = ?", session['user_id'])
+            print("User's id = ", session["user_id"])
+            user_cash = db.execute("SELECT * FROM users WHERE id = ?", session['user_id'])[0]["cash"] # Calling the dict key after selecting the first row, clever
 
             # User can afford the shares
-            if user_cash >= amount_to_spend:
-                # Add transaction
+            if float(user_cash) >= amount_to_spend:
+                # Add transaction to transactions table
                 db.execute(
                     "INSERT INTO transactions (user_id, type, symbol, amount, price) VALUES (?, ?, ?, ?, ?)",
                     session['user_id'],
                     "buy",
+                    symbol,
                     shares_to_buy,
                     symbol_info['price']
                 )
                 # Check if user already has holdings and update accordingly
+                # Need to use a SELECT statement to check if the symbol is already owned by the user
+                amount = db.execute("SELECT amount FROM holdings WHERE user_id = ? AND symbol = ?", session["user_id"], symbol)
+                if len(amount) == 0:
+                    # User doesn't own any shares of the symbol
+                    db.execute("INSERT INTO holdings (user_id, symbol, amount) VALUES (?, ?, ?)", session['user_id'], symbol, shares_to_buy)
+                else:
+                    # User owns the symbol, need to update
+                    db.execute("UPDATE holdings SET amount = ? WHERE user_id = ? AND symbol = ?",
+                               float(amount[0]['amount']) + shares_to_buy,
+                               session['user_id'],
+                               symbol)
             else:
-                return apology("Can't afford")
+                return apology("Can't afford", 400)
 
+        flash("Bought!")
         return redirect("/")
 
 
