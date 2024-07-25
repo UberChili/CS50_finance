@@ -237,15 +237,58 @@ def register():
 @login_required
 def sell():
     """Sell shares of stock"""
+
+    # Get curent user's cash 
+    cash_row = db.execute("SELECT * FROM users WHERE id = ?", session['user_id'])
+    if cash_row == None:
+        return apology("Can't find cash", 400)
+    else:
+        actual_user_cash = float(round(cash_row[0]['cash'], 2))
+
+    # Get current user's holdings
+    holdings = {}
+    rows = db.execute("SELECT * FROM holdings WHERE user_id = ?", session['user_id'])
+    if len(rows) < 1:
+        return apology("User has no holdings", 400)
+    else:
+        for row in rows:
+            # holdings.append({'symbol': row['symbol'], 'shares': row['amount']})
+            holdings[row['symbol']] = {'amount': int(row['amount'])}
+
     if request.method == "GET":
-        # get holdings to display
-        rows = db.execute("SELECT * FROM holdings WHERE id = ?", session['user_id'])
-        if len(rows) < 1:
-            return apology("User has no holdings", 400)
-        else:
-            holdings = []
-            for row in rows:
-                holdings.append({'symbol': row['symbol'], 'amount': row['amount']})
+        # Display menu of shares available to sell
         return render_template("sell.html", holdings=holdings)
     else:
-        return apology("TODO")
+        symbol_to_sell = request.form.get('symbol', type=str)
+        shares_to_sell = request.form.get('shares', type=float)
+        if symbol_to_sell == None or shares_to_sell == None:
+            return apology("Error with provided symbol", 400)
+        else:
+        
+            # Check if valid number of shares to sell
+            if shares_to_sell > holdings[symbol_to_sell]['amount']:
+                return apology("Not enough shares to sell", 400)
+            else:
+                symbol_info = lookup(symbol_to_sell)
+                if symbol_info == None:
+                    return apology("Error looking up price", 400)
+                else:
+                    db.execute(
+                        "INSERT INTO transactions (user_id, type, symbol, amount, price) VALUES (?, ?, ?, ?, ?)",
+                        session['user_id'],
+                        "sell",
+                        symbol_to_sell,
+                        -shares_to_sell,
+                        symbol_info['price']
+                    )
+                    if shares_to_sell == holdings[symbol_to_sell]['amount']:
+                        db.execute("DELETE FROM holdings WHERE user_id = ? AND symbol = ?", session['user_id'], symbol_to_sell)
+                        db.execute("UPDATE users SET cash = ? WHERE id = ?", actual_user_cash + (symbol_info['price'] * shares_to_sell), session['user_id'])
+                    else:
+                        db.execute("UPDATE holdings SET amount = ? WHERE user_id = ? AND symbol = ?",
+                                   holdings[symbol_to_sell]['amount'] - shares_to_sell,
+                                   session['user_id'],
+                                   symbol_to_sell)
+                        db.execute("UPDATE users SET cash = ? WHERE id = ?", actual_user_cash + (symbol_info['price'] * shares_to_sell), session['user_id'])
+                    flash("Sold!")
+                    return redirect("/")
