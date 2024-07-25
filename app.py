@@ -36,8 +36,22 @@ def after_request(response):
 @login_required
 def index():
     """Show portfolio of stocks"""
+    cash = db.execute("SELECT * FROM users WHERE id = ?", session['user_id'])[0]['cash']
+    grand_total = 0
     rows = db.execute("SELECT * FROM holdings WHERE user_id = ?", session['user_id'])
-    return render_template("index.html", holdings=rows)
+    holdings = []
+    for row in rows:
+        total = 0
+        looked_info = lookup(row['symbol'])
+        if looked_info == None:
+            return apology("Error looking up symbol")
+        else:
+            price = looked_info['price']
+            total = price * row['amount']
+            holdings.append({'symbol': row['symbol'], 'amount': row['amount'], 'price': usd(price), 'total': usd(total)})
+        grand_total += total
+
+    return render_template("index.html", holdings=holdings, cash=usd(round(cash, 2)), grand_total=usd(round(grand_total+cash)))
 
 
 @app.route("/buy", methods=["GET", "POST"])

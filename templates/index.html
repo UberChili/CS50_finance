@@ -6,12 +6,13 @@
 
 {% block main %}
     <div class="section">
-        <h1>Holdings</h1>
         <table class="table table-stripped">
             <thead>
                 <tr>
                     <th class="text-start">Symbol</th>
                     <th class="text-end">Shares</th>
+                    <th class="text-end">Price</th>
+                    <th class="text-end">Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -19,9 +20,21 @@
                     <tr>
                         <td class="text-start">{{ row.symbol }}</td>
                         <td class="text-end">{{ row.amount }}</td>
+                        <td class="text-end">{{ row.price }}</td>
+                        <td class="text-end">{{ row.total }}</td>
                     </tr>
                 {% endfor %}
             </tbody>
+            <tfoot>
+                <tr>
+                    <td class="border-0 fw-bold text-end" colspan="3">Cash</td>
+                    <td class="border-0 fw-bold text-end">{{ cash }}</td>
+                </tr>
+                <tr>
+                    <td class="border-0 fw-bold text-end" colspan="3">TOTAL</td>
+                    <td class="border-0 fw-bold text-end">{{ grand_total }}</td>
+                </tr>
+            </tfoot>
         </table>
     </div>
 {% endblock %}
