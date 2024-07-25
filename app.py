@@ -48,17 +48,21 @@ def buy():
         return render_template("buy.html")
     else:
         # Get form info and validate symbol using lookup
-        symbol = request.form.get("symbol")
-        shares_to_buy = float(request.form.get("shares"))
+        symbol = request.form.get("symbol", "", type=str)
+        if symbol == "":
+            return apology("Invalid symbol", 400)
+        # shares_to_buy = float(request.form.get("shares"))
+        shares_to_buy = request.form.get('shares', -1, type=float)
+        if shares_to_buy == -1:
+            return apology("Error in shares to buy", 400)
         symbol_info = lookup(symbol)
         if symbol_info == None:
-            return apology("Invalid symbol")
+            return apology("Invalid symbol", 400)
         else:
             amount_to_spend = shares_to_buy * symbol_info["price"]
             print(symbol, shares_to_buy, amount_to_spend)
 
             # Getting user's balance
-            print("User's id = ", session["user_id"])
             user_cash = db.execute("SELECT * FROM users WHERE id = ?", session['user_id'])[0]["cash"] # Calling the dict key after selecting the first row, clever
 
             # User can afford the shares
@@ -74,16 +78,24 @@ def buy():
                 )
                 # Check if user already has holdings and update accordingly
                 # Need to use a SELECT statement to check if the symbol is already owned by the user
-                amount = db.execute("SELECT amount FROM holdings WHERE user_id = ? AND symbol = ?", session["user_id"], symbol)
+                amount = db.execute("SELECT amount FROM holdings WHERE user_id = ? AND symbol = ?", session["user_id"], symbol.upper())
                 if len(amount) == 0:
                     # User doesn't own any shares of the symbol
-                    db.execute("INSERT INTO holdings (user_id, symbol, amount) VALUES (?, ?, ?)", session['user_id'], symbol, shares_to_buy)
+                    db.execute("INSERT INTO holdings (user_id, symbol, amount) VALUES (?, ?, ?)", session['user_id'], symbol.upper(), shares_to_buy)
+                    # Update user's cash
+                    db.execute("UPDATE users SET cash = ? WHERE id = ?",
+                                               float(user_cash) - amount_to_spend,
+                                               session['user_id'])
                 else:
                     # User owns the symbol, need to update
                     db.execute("UPDATE holdings SET amount = ? WHERE user_id = ? AND symbol = ?",
                                float(amount[0]['amount']) + shares_to_buy,
                                session['user_id'],
-                               symbol)
+                               symbol.upper())
+                    # Also update user's cash
+                    db.execute("UPDATE users SET cash = ? WHERE id = ?",
+                                               float(user_cash) - amount_to_spend,
+                                               session['user_id'])
             else:
                 return apology("Can't afford", 400)
 
@@ -173,7 +185,6 @@ def register():
         return render_template("register.html")
 
     if request.method == "POST":
-        print("Oh, a post!")
         # Get username and check if it is valid
         username = request.form.get("username")
         if username == None:
