@@ -86,7 +86,7 @@ def buy():
                     "INSERT INTO transactions (user_id, type, symbol, amount, price) VALUES (?, ?, ?, ?, ?)",
                     session['user_id'],
                     "buy",
-                    symbol,
+                    symbol.upper(),
                     shares_to_buy,
                     symbol_info['price']
                 )
@@ -121,7 +121,14 @@ def buy():
 @login_required
 def history():
     """Show history of transactions"""
-    return apology("TODO")
+    rows = db.execute("SELECT * FROM transactions WHERE user_id = ?", session['user_id'])
+    if len(rows) < 1:
+        return apology("No transactions yet!")
+    else:
+        transactions = []
+        for row in rows:
+            transactions.append({'symbol': row['symbol'], 'amount': row['amount'], 'price': usd(row['price']), 'transacted': row['datetime']})
+        return render_template("history.html", transactions=transactions)
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -277,7 +284,7 @@ def sell():
                         "INSERT INTO transactions (user_id, type, symbol, amount, price) VALUES (?, ?, ?, ?, ?)",
                         session['user_id'],
                         "sell",
-                        symbol_to_sell,
+                        symbol_to_sell.upper(),
                         -shares_to_sell,
                         symbol_info['price']
                     )
